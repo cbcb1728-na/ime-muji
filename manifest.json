@@ -1,11 +1,11 @@
 ﻿{
-  "name": "Mujineko-Honkoku Tool",
-  "short_name": "翻刻ムジ",
+  "name": "IME-MUJI",
+  "short_name": "IMEもどき",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#222222",
   "theme_color": "#222222",
-  "description": "ブラウザで動く古文書翻刻・メモエディタ",
+  "description": "WindowsライクなIMEパッド",
   "icons": [
     {
       "src": "icon-192.png",
@@ -18,4 +18,5 @@
       "type": "image/png"
     }
   ]
+
 }
