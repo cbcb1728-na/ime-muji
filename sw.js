@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'mujineko-honkoku-v1';
+﻿const CACHE_NAME = 'ime-muji-vi';
 const urlsToCache = [
   './index.html',
   './manifest.json',
@@ -21,4 +21,5 @@ self.addEventListener('fetch', function(event) {
       return response || fetch(event.request);
     })
   );
+
 });
