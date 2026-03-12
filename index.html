@@ -20,7 +20,7 @@
             margin: 0;
         }
         
-        /* PC向けのコンパクトな横並び */
+        /* PC向けのコンパクトな横並び（変更なし） */
         .container { 
             display: flex; 
             flex-direction: row; 
@@ -38,7 +38,10 @@
             flex-shrink: 0;
         }
 
+        /* PC版キャンバスの基本サイズ（200x200） */
         canvas { 
+            width: 200px;
+            height: 200px;
             border: 1px solid #ccc; 
             cursor: crosshair; 
             background: #fafafa; 
@@ -94,18 +97,29 @@
         .candidate-btn:hover { background: #007bff; color: #fff; }
         #message { margin-top: 8px; color: #007bff; font-size: 12px; min-height: 18px;}
 
-        /* スマホ向けレイアウト：画面幅が500px以下になったら縦並びに変更 */
+        /* ★スマホ向けレイアウト：画面幅が500px以下になった時の設定★ */
         @media (max-width: 500px) {
+            body { padding: 10px; } /* スマホの時は画面端の余白を少し減らす */
+            
             .container {
                 flex-direction: column;
                 align-items: center;
             }
-            .result-area {
-                /* キャンバスエリアの横幅(約222px)とピッタリ揃えるための設定 */
-                width: 222px; 
+            
+            .canvas-area, .result-area {
+                /* スマホの画面幅に合わせて枠を大きくする */
+                width: 100%; 
+                max-width: 360px; /* 広がりすぎないよう最大幅を設定 */
                 box-sizing: border-box;
             }
-            /* 縦並びの時は、候補のボタンがはみ出さないように折り返しを強制 */
+            
+            canvas {
+                /* キャンバスの見た目を枠いっぱいに広げ、正方形を保つ */
+                width: 100%;
+                height: auto;
+                aspect-ratio: 1 / 1; 
+            }
+
             #candidates {
                 display: flex;
                 flex-wrap: wrap;
@@ -119,7 +133,7 @@
         <div class="canvas-area">
             <canvas id="pad" width="200" height="200"></canvas>
             <div class="controls">
-                <span style="font-size: 11px; color: #666;">マウスで描画</span>
+                <span style="font-size: 11px; color: #666;">文字を描画</span>
                 <div class="controls-buttons">
                     <button id="undoBtn">1画戻る</button>
                     <button id="clearBtn">消去</button>
@@ -128,7 +142,7 @@
         </div>
 
         <div class="result-area">
-            <h3>認識候補 (クリックでコピー)</h3>
+            <h3>認識候補 (タップでコピー)</h3>
             <div id="candidates" style="min-height: 50px; font-size: 13px; color: #666;">ここに候補が出ます...</div>
             <div id="message"></div>
         </div>
@@ -151,13 +165,26 @@
         ctx.lineJoin = 'round';
         ctx.strokeStyle = '#222';
 
+        // ★キャンバスが拡大されても正確に座標を取得するための補正処理★
         function getCoords(e) {
             const rect = canvas.getBoundingClientRect();
+            // 見た目のサイズ(rect.width)と、実際のデータサイズ(canvas.width)の比率を計算
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            let clientX, clientY;
             if (e.touches && e.touches.length > 0) {
-                return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
             } else {
-                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                clientX = e.clientX;
+                clientY = e.clientY;
             }
+
+            return { 
+                x: (clientX - rect.left) * scaleX, 
+                y: (clientY - rect.top) * scaleY 
+            };
         }
 
         const startDrawing = (e) => {
@@ -302,8 +329,3 @@
     </script>
 </body>
 </html>
-
-</body>
-
-</html>
-
