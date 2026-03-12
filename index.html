@@ -1,8 +1,8 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Web版 IMEパッドプロトタイプ</title>
     
     <link rel="manifest" href="manifest.json">
@@ -11,34 +11,125 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     
     <style>
-        body { font-family: sans-serif; padding: 20px; background-color: #f5f5f5; }
-        .container { display: flex; gap: 20px; }
-        .canvas-area { background: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        canvas { border: 1px solid #ccc; cursor: crosshair; background: #fafafa; }
-        .controls { margin-top: 10px; }
-        button { padding: 8px 16px; cursor: pointer; border-radius: 4px; border: 1px solid #aaa; background: #eee; }
-        button:hover { background: #ddd; }
-        .result-area { width: 300px; background: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .candidate-btn { display: inline-block; padding: 10px 15px; margin: 5px; font-size: 20px; border: 1px solid #007bff; background: #fff; color: #007bff; border-radius: 4px; cursor: pointer; }
+        body { 
+            font-family: 'Segoe UI', Meiryo, sans-serif;
+            padding: 20px; 
+            background-color: #f5f5f5; 
+            display: flex;
+            justify-content: center;
+            margin: 0;
+        }
+        
+        /* PC向けのコンパクトな横並び */
+        .container { 
+            display: flex; 
+            flex-direction: row; 
+            gap: 15px; 
+            width: 100%; 
+            max-width: 600px;
+        }
+
+        .canvas-area { 
+            background: #fff; 
+            padding: 10px;
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15); 
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        canvas { 
+            border: 1px solid #ccc; 
+            cursor: crosshair; 
+            background: #fafafa; 
+            touch-action: none; 
+            border-radius: 2px;
+        }
+
+        .controls { 
+            margin-top: 10px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .controls-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        button { 
+            padding: 6px 12px;
+            cursor: pointer; 
+            border-radius: 4px; 
+            border: 1px solid #aaa; 
+            background: #f0f0f0; 
+            font-size: 13px;
+        }
+        button:hover { background: #e0e0e0; }
+        
+        .result-area { 
+            background: #fff; 
+            padding: 10px 15px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15); 
+            flex-grow: 1; 
+            min-width: 200px;
+        }
+
+        .result-area h3 { margin: 0 0 10px 0; font-size: 14px; color: #333;}
+        
+        .candidate-btn { 
+            display: inline-block; 
+            padding: 6px 10px; 
+            margin: 3px; 
+            font-size: 18px;
+            border: 1px solid #007bff; 
+            background: #fff; 
+            color: #007bff; 
+            border-radius: 4px; 
+            cursor: pointer; 
+        }
         .candidate-btn:hover { background: #007bff; color: #fff; }
-        #message { margin-top: 10px; color: green; font-size: 14px; }
+        #message { margin-top: 8px; color: #007bff; font-size: 12px; min-height: 18px;}
+
+        /* スマホ向けレイアウト：画面幅が500px以下になったら縦並びに変更 */
+        @media (max-width: 500px) {
+            .container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .result-area {
+                /* キャンバスエリアの横幅(約222px)とピッタリ揃えるための設定 */
+                width: 222px; 
+                box-sizing: border-box;
+            }
+            /* 縦並びの時は、候補のボタンがはみ出さないように折り返しを強制 */
+            #candidates {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: flex-start;
+            }
+        }
     </style>
 </head>
 <body>
-
-    <h2>手書き入力プロトタイプ</h2>
     <div class="container">
         <div class="canvas-area">
-            <canvas id="pad" width="300" height="300"></canvas>
+            <canvas id="pad" width="200" height="200"></canvas>
             <div class="controls">
-                <button id="clearBtn">クリア</button>
-                <span style="font-size: 12px; color: #666; margin-left: 10px;">マウスで文字を書いてください</span>
+                <span style="font-size: 11px; color: #666;">マウスで描画</span>
+                <div class="controls-buttons">
+                    <button id="undoBtn">1画戻る</button>
+                    <button id="clearBtn">消去</button>
+                </div>
             </div>
         </div>
 
         <div class="result-area">
-            <h3>認識候補</h3>
-            <div id="candidates">ここに候補が出ます...</div>
+            <h3>認識候補 (クリックでコピー)</h3>
+            <div id="candidates" style="min-height: 50px; font-size: 13px; color: #666;">ここに候補が出ます...</div>
             <div id="message"></div>
         </div>
     </div>
@@ -47,68 +138,110 @@
         const canvas = document.getElementById('pad');
         const ctx = canvas.getContext('2d');
         const clearBtn = document.getElementById('clearBtn');
+        const undoBtn = document.getElementById('undoBtn');
         const candidatesDiv = document.getElementById('candidates');
         const messageDiv = document.getElementById('message');
 
         let isDrawing = false;
-        let strokes = []; // APIに送るすべての線のデータ
-        let currentX = [], currentY = [], currentT = []; // 1画ごとのデータ
+        let strokes = []; 
+        let currentX = [], currentY = [], currentT = []; 
 
-        // キャンバスの設定
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 4;
         ctx.lineCap = 'round';
-        ctx.strokeStyle = '#333';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#222';
 
-        // 描画開始
-        canvas.addEventListener('mousedown', (e) => {
+        function getCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            if (e.touches && e.touches.length > 0) {
+                return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+            } else {
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            }
+        }
+
+        const startDrawing = (e) => {
+            e.preventDefault();
             isDrawing = true;
             currentX = []; currentY = []; currentT = [];
+            const pos = getCoords(e);
             ctx.beginPath();
-            ctx.moveTo(e.offsetX, e.offsetY);
-            addPoint(e);
-        });
+            ctx.moveTo(pos.x, pos.y);
+            addPoint(pos);
+        };
 
-        // 描画中
-        canvas.addEventListener('mousemove', (e) => {
+        const draw = (e) => {
+            e.preventDefault();
             if (!isDrawing) return;
-            ctx.lineTo(e.offsetX, e.offsetY);
+            const pos = getCoords(e);
+            ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
-            addPoint(e);
-        });
+            addPoint(pos);
+        };
 
-        // 描画終了
-        canvas.addEventListener('mouseup', () => {
+        const stopDrawing = (e) => {
+            e.preventDefault();
             if (!isDrawing) return;
             isDrawing = false;
-            strokes.push([currentX, currentY, currentT]); // 1画分を保存
-            recognizeHandwriting(); // 書き終わるたびに認識処理を走らせる
-        });
+            strokes.push([currentX, currentY, currentT]);
+            recognizeHandwriting();
+        };
 
-        // キャンバス外に出た時も終了処理
-        canvas.addEventListener('mouseleave', () => {
-            if (isDrawing) {
-                isDrawing = false;
-                strokes.push([currentX, currentY, currentT]);
-                recognizeHandwriting();
-            }
-        });
-
-        // 座標と時間を記録する関数
-        function addPoint(e) {
-            currentX.push(e.offsetX);
-            currentY.push(e.offsetY);
+        function addPoint(pos) {
+            currentX.push(pos.x);
+            currentY.push(pos.y);
             currentT.push(Date.now());
         }
 
-        // キャンバスのクリア
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', () => { if(isDrawing) stopDrawing({preventDefault:()=>{}}); });
+
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing, { passive: false });
+
         clearBtn.addEventListener('click', () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             strokes = [];
-            candidatesDiv.innerHTML = 'ここに候補が出ます...';
-            messageDiv.textContent = '';
+            resetCandidates();
         });
 
-        // Google Handwriting APIへのリクエスト処理
+        undoBtn.addEventListener('click', () => {
+            if (strokes.length === 0) return; 
+            strokes.pop(); 
+            redrawCanvas(); 
+
+            if (strokes.length > 0) {
+                recognizeHandwriting(); 
+            } else {
+                resetCandidates(); 
+            }
+        });
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            strokes.forEach(stroke => {
+                const x = stroke[0];
+                const y = stroke[1];
+                if (x.length === 0) return;
+
+                ctx.beginPath();
+                ctx.moveTo(x[0], y[0]);
+                for (let i = 1; i < x.length; i++) {
+                    ctx.lineTo(x[i], y[i]);
+                }
+                ctx.stroke();
+            });
+        }
+
+        function resetCandidates() {
+            candidatesDiv.innerHTML = 'ここに候補が出ます...';
+            candidatesDiv.style.color = '#666';
+            messageDiv.textContent = '';
+        }
+
         async function recognizeHandwriting() {
             if (strokes.length === 0) return;
 
@@ -117,7 +250,7 @@
                 options: "enable_pre_space",
                 requests: [{
                     writing_guide: { width: canvas.width, height: canvas.height },
-                    ink: strokes, // 記録したストロークデータ
+                    ink: strokes,
                     language: "ja"
                 }]
             };
@@ -128,30 +261,26 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestData)
                 });
-
                 const data = await response.json();
-                
-                // レスポンスの解析 (Google API特有の配列構造から候補を取り出す)
                 if (data[0] === 'SUCCESS' && data[1][0] && data[1][0][1]) {
-                    const results = data[1][0][1];
-                    displayCandidates(results);
+                    displayCandidates(data[1][0][1]);
                 }
             } catch (error) {
                 console.error("認識エラー:", error);
-                candidatesDiv.innerHTML = '<span style="color:red;">通信エラーが発生しました</span>';
+                candidatesDiv.innerHTML = '<span style="color:red; font-size:13px;">通信エラーが発生しました</span>';
             }
         }
 
-        // 候補を画面に表示し、クリックでコピーできるようにする
         function displayCandidates(results) {
             candidatesDiv.innerHTML = '';
-            results.forEach(text => {
+            candidatesDiv.style.color = 'inherit';
+            results.slice(0, 15).forEach(text => {
                 const btn = document.createElement('button');
                 btn.className = 'candidate-btn';
                 btn.textContent = text;
                 btn.onclick = () => {
                     navigator.clipboard.writeText(text).then(() => {
-                        messageDiv.textContent = `「${text}」をクリップボードにコピーしました！`;
+                        messageDiv.textContent = `「${text}」をコピーしました`;
                         setTimeout(() => messageDiv.textContent = '', 2000);
                     });
                 };
@@ -159,18 +288,22 @@
             });
         }
     </script>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-      navigator.serviceWorker.register('./sw.js').then(function(registration) {
-        console.log('ServiceWorker registration successful');
-      }, function(err) {
-        console.log('ServiceWorker registration failed: ', err);
-      });
-    });
-  }
-</script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./sw.js').then(function(registration) {
+                    console.log('ServiceWorker registration successful');
+                }).catch(function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
 
 </body>
 
 </html>
+
